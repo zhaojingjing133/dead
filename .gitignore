@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+
+# 构建输出
+dist/
+unpackage/
+
+# 微信小程序
+项目文档/死了吗-uniapp/dist/
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+.cursor-server/
+
+# 环境变量
+.env
+.env.local
+.env.*.local

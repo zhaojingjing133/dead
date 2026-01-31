@@ -1,0 +1,27 @@
+{
+  "name": "死了吗",
+  "appid": "__UNI__SLM",
+  "description": "每日签到，连续2天未签将发送邮件提醒",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true
+    }
+  },
+  "h5": {
+    "template": "index.html",
+    "router": {
+      "mode": "hash",
+      "base": "./"
+    }
+  },
+  "uniStatistics": {
+    "enable": false
+  },
+  "vueVersion": "3"
+}
