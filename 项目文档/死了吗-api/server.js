@@ -27,6 +27,10 @@ const pool = mysql.createPool({
 
 // 微信 code 换 openid
 async function getOpenId(code) {
+  // 测试模式：code 为 test_code 时使用模拟 openid
+  if (code === 'test_code') {
+    return 'test_openid_' + Date.now();
+  }
   const appid = process.env.WECHAT_APPID;
   const secret = process.env.WECHAT_SECRET;
   if (!appid || !secret) {
@@ -154,7 +158,9 @@ app.post('/api/check-in', async (req, res) => {
 });
 
 // ========== 定时任务：连续2天未签到的用户发邮件 ==========
+const REMINDER_SUBJECT = process.env.EMAIL_REMINDER_SUBJECT || '好着没 - 记得签到哦';
 const REMINDER_CONTENT = process.env.EMAIL_REMINDER_CONTENT || '我连续2天都不好，快给我打个电话吧！';
+const CRON_EXPR = process.env.EMAIL_CRON || '0 20 * * *';
 
 async function sendReminderEmails() {
   const transport = getTransporter();
@@ -196,7 +202,7 @@ async function sendReminderEmails() {
       await transport.sendMail({
         from: process.env.SMTP_FROM || fromEmail,
         to: u.email,
-        subject: '好着没 - 记得签到哦',
+        subject: REMINDER_SUBJECT,
         text: REMINDER_CONTENT,
         html: `<p>${REMINDER_CONTENT.replace(/\n/g, '<br>')}</p>`,
       });
@@ -218,8 +224,8 @@ async function sendReminderEmails() {
   }
 }
 
-// 每天 20:00 执行
-cron.schedule('0 20 * * *', () => {
+// 定时执行（可配置 EMAIL_CRON）
+cron.schedule(CRON_EXPR, () => {
   console.log('[cron] 执行连续2天未签到提醒');
   sendReminderEmails().catch(console.error);
 });
@@ -234,12 +240,40 @@ app.post('/api/cron/reminder', async (req, res) => {
   }
 });
 
+// 测试接口：发送邮件到指定地址
+app.post('/api/test/send-email', async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      return res.status(400).json({ code: 40001, message: '请提供有效的 to 邮箱' });
+    }
+    const transport = getTransporter();
+    if (!transport) {
+      return res.status(500).json({ code: 50001, message: '邮件服务未配置' });
+    }
+    const subject = process.env.EMAIL_REMINDER_SUBJECT || '好着没 - 测试邮件';
+    const content = process.env.EMAIL_REMINDER_CONTENT || '这是一封测试邮件，邮件功能正常。';
+    await transport.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      text: content,
+      html: `<p>${content.replace(/\n/g, '<br>')}</p>`,
+    });
+    res.json({ code: 0, message: '邮件已发送', data: { to } });
+  } catch (err) {
+    console.error('send-email error:', err);
+    res.status(500).json({ code: 50001, message: err.message });
+  }
+});
+
 // 启动（必须监听 0.0.0.0 才能被 Sealos 网关访问）
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, HOST, () => {
   console.log(`[OK] 好着没后端已启动`);
-  console.log(`[OK] 监听地址: ${HOST}:${PORT} （0.0.0.0 才能被外网访问）`);
+  console.log(`[OK] 监听地址: ${HOST}:${PORT}`);
+  console.log(`[OK] 邮件提醒定时: ${CRON_EXPR}`);
   console.log('签到: POST /api/check-in');
   console.log('健康: GET /api/health');
 });
